@@ -1,12 +1,12 @@
 {
-    "geode": "2.0.0",
+    "geode": "5.7.1",
     "gd": {
         "android": "2.2081"
     },
     "id": "filippo.fps-bypass",
     "name": "FPS Bypass",
     "version": "v1.0.0",
-    "developer": "filippo",
+    "developer": "Giangi",
     "description": "Unlock FPS beyond screen refresh rate on Android",
     "settings": {
         "fps": {
