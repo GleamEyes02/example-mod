@@ -22,14 +22,11 @@ static void applyFps() {
 }
 
 class $modify(FPSBypassDirector, CCDirector) {
-    struct Fields {
-        bool applied = false;
-    };
-
     void drawScene() {
-        if (!m_fields->applied) {
+        static bool applied = false;
+        if (!applied) {
             applyFps();
-            m_fields->applied = true;
+            applied = true;
         }
         CCDirector::drawScene();
     }
