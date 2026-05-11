@@ -1,4 +1,5 @@
 #include <Geode/Geode.hpp>
+#include <Geode/modify/CCDirector.hpp>
 
 using namespace geode::prelude;
 
@@ -11,7 +12,7 @@ static bool s_vsyncDisabled = false;
 static int s_targetFps = 60;
 static int64_t s_lastFrameNs = 0;
 
-static void disableVsync() {
+static void applyDisableVsync() {
     EGLDisplay display = eglGetCurrentDisplay();
     if (display != EGL_NO_DISPLAY) {
         eglSwapInterval(display, 0);
@@ -51,15 +52,15 @@ static void sleepUntilNextFrame() {
 
 class $modify(FPSBypassDirector, CCDirector) {
     void drawScene() {
-        bool disableVsync = Mod::get()->getSettingValue<bool>("disable-vsync");
+        bool vsyncEnabled = Mod::get()->getSettingValue<bool>("disable-vsync");
 
-        if (disableVsync && !s_vsyncDisabled) {
-            disableVsync();
+        if (vsyncEnabled && !s_vsyncDisabled) {
+            applyDisableVsync();
         }
 
         CCDirector::drawScene();
 
-        if (disableVsync) {
+        if (vsyncEnabled) {
             sleepUntilNextFrame();
         }
     }
