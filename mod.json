@@ -1,17 +1,27 @@
 {
-	"geode": "$GEODE_VERSION",
-	"gd": {
-		"win": "2.2081",
-		"android": "2.2081",
-		"mac": "2.2081",
-		"ios": "2.2081"
-	},
-	"id": "$MOD_ID",
-	"name": "$MOD_NAME",
-	"version": "$MOD_VERSION",
-	"developer": "$MOD_DEVELOPER",
-	"description": "$MOD_DESCRIPTION",
-	"dependencies": {
-		"geode.node-ids": ">=v1.23.3"
-	}
+    "geode": "4.0.0",
+    "gd": {
+        "android": "2.2074"
+    },
+    "id": "filippo.fps-bypass",
+    "name": "FPS Bypass",
+    "version": "v1.0.0",
+    "developer": "filippo",
+    "description": "Unlock FPS beyond screen refresh rate on Android",
+    "settings": {
+        "fps": {
+            "name": "Target FPS",
+            "description": "Target frames per second (applies when vsync is disabled)",
+            "type": "int",
+            "default": 60,
+            "min": 15,
+            "max": 360
+        },
+        "disable-vsync": {
+            "name": "Disable VSync",
+            "description": "Disable vsync to allow FPS beyond screen refresh rate",
+            "type": "bool",
+            "default": true
+        }
+    }
 }
