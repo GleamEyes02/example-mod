@@ -1,100 +1,90 @@
-/**
- * Include the Geode headers.
- */
 #include <Geode/Geode.hpp>
 
-/**
- * Brings cocos2d and all Geode namespaces to the current scope.
- */
 using namespace geode::prelude;
 
-/**
- * `$modify` lets you extend and modify GD's classes.
- * To hook a function in Geode, simply $modify the class
- * and write a new function definition with the signature of
- * the function you want to hook.
- *
- * Here we use the overloaded `$modify` macro to set our own class name,
- * so that we can use it for button callbacks.
- *
- * Notice the header being included, you *must* include the header for
- * the class you are modifying, or you will get a compile error.
- *
- * Another way you could do this is like this:
- *
- * struct MyMenuLayer : Modify<MyMenuLayer, MenuLayer> {};
- */
-#include <Geode/modify/MenuLayer.hpp>
-class $modify(MyMenuLayer, MenuLayer) {
-	/**
-	 * Typically classes in GD are initialized using the `init` function, (though not always!),
-	 * so here we use it to add our own button to the bottom menu.
-	 *
-	 * Note that for all hooks, your signature has to *match exactly*,
-	 * `void init()` would not place a hook!
-	*/
-	bool init() {
-		/**
-		 * We call the original init function so that the
-		 * original class is properly initialized.
-		 */
-		if (!MenuLayer::init()) {
-			return false;
-		}
+#ifdef GEODE_IS_ANDROID
 
-		/**
-		 * You can use methods from the `geode::log` namespace to log messages to the console,
-		 * being useful for debugging and such. See this page for more info about logging:
-		 * https://docs.geode-sdk.org/tutorials/logging
-		*/
-		log::debug("Hello from my MenuLayer::init hook! This layer has {} children.", this->getChildrenCount());
+#include <EGL/egl.h>
+#include <time.h>
 
-		/**
-		 * See this page for more info about buttons
-		 * https://docs.geode-sdk.org/tutorials/buttons
-		*/
-		auto myButton = CCMenuItemSpriteExtra::create(
-			CCSprite::createWithSpriteFrameName("GJ_likeBtn_001.png"),
-			this,
-			/**
-			 * Here we use the name we set earlier for our modify class.
-			*/
-			menu_selector(MyMenuLayer::onMyButton)
-		);
+static bool s_vsyncDisabled = false;
+static int s_targetFps = 60;
+static int64_t s_lastFrameNs = 0;
 
-		/**
-		 * Here we access the `bottom-menu` node by its ID, and add our button to it.
-		 * Node IDs are a Geode feature, see this page for more info about it:
-		 * https://docs.geode-sdk.org/tutorials/nodetree
-		*/
-		auto menu = this->getChildByID("bottom-menu");
-		menu->addChild(myButton);
+static void disableVsync() {
+    EGLDisplay display = eglGetCurrentDisplay();
+    if (display != EGL_NO_DISPLAY) {
+        eglSwapInterval(display, 0);
+        s_vsyncDisabled = true;
+    }
+}
 
-		/**
-		 * The `_spr` string literal operator just prefixes the string with
-		 * your mod id followed by a slash. This is good practice for setting your own node ids.
-		*/
-		myButton->setID("my-button"_spr);
+static int64_t nowNs() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+}
 
-		/**
-		 * We update the layout of the menu to ensure that our button is properly placed.
-		 * This is yet another Geode feature, see this page for more info about it:
-		 * https://docs.geode-sdk.org/tutorials/layouts
-		*/
-		menu->updateLayout();
+static void sleepUntilNextFrame() {
+    if (s_targetFps <= 0) return;
+    int64_t frameNs = 1000000000LL / s_targetFps;
+    int64_t now = nowNs();
 
-		/**
-		 * We return `true` to indicate that the class was properly initialized.
-		 */
-		return true;
-	}
+    if (s_lastFrameNs == 0) {
+        s_lastFrameNs = now;
+        return;
+    }
 
-	/**
-	 * This is the callback function for the button we created earlier.
-	 * The signature for button callbacks must always be the same,
-	 * return type `void` and taking a `CCObject*`.
-	*/
-	void onMyButton(CCObject*) {
-		FLAlertLayer::create("Geode", "Hello from my custom mod!", "OK")->show();
-	}
+    int64_t next = s_lastFrameNs + frameNs;
+    int64_t sleepFor = next - now;
+
+    if (sleepFor > 0 && sleepFor < frameNs * 2) {
+        struct timespec req;
+        req.tv_sec = sleepFor / 1000000000LL;
+        req.tv_nsec = sleepFor % 1000000000LL;
+        nanosleep(&req, nullptr);
+        s_lastFrameNs = next;
+    } else {
+        s_lastFrameNs = nowNs();
+    }
+}
+
+class $modify(FPSBypassDirector, CCDirector) {
+    void drawScene() {
+        bool disableVsync = Mod::get()->getSettingValue<bool>("disable-vsync");
+
+        if (disableVsync && !s_vsyncDisabled) {
+            disableVsync();
+        }
+
+        CCDirector::drawScene();
+
+        if (disableVsync) {
+            sleepUntilNextFrame();
+        }
+    }
 };
+
+$on_mod(Loaded) {
+    s_targetFps = Mod::get()->getSettingValue<int64_t>("fps");
+    s_vsyncDisabled = false;
+
+    listenForSettingChanges<int64_t>("fps", [](int64_t value) {
+        s_targetFps = (int)value;
+        s_lastFrameNs = 0;
+    });
+
+    listenForSettingChanges<bool>("disable-vsync", [](bool value) {
+        if (!value) {
+            EGLDisplay display = eglGetCurrentDisplay();
+            if (display != EGL_NO_DISPLAY) {
+                eglSwapInterval(display, 1);
+            }
+            s_vsyncDisabled = false;
+        } else {
+            s_vsyncDisabled = false;
+        }
+    });
+}
+
+#endif
